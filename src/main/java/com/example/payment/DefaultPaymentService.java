@@ -2,17 +2,20 @@ package com.example.payment;
 
 import com.example.payment.model.PaymentRequest;
 import com.example.payment.model.PaymentResult;
+import com.example.payment.model.Receipt;
 import com.example.payment.model.RefundRequest;
 import java.util.HashMap;
 import java.util.Map;
 
 public class DefaultPaymentService implements PaymentService {
     private final Map<String, PaymentResult> transactions = new HashMap<>();
+    private final Map<String, String> statusMap = new HashMap<>();
 
     @Override
     public PaymentResult processPayment(PaymentRequest request) {
         PaymentResult result = new PaymentResult(request.getTransactionId(), true, "Payment processed successfully");
         transactions.put(request.getTransactionId(), result);
+        statusMap.put(request.getTransactionId(), "COMPLETED");
         return result;
     }
 
@@ -20,6 +23,33 @@ public class DefaultPaymentService implements PaymentService {
     public PaymentResult refundPayment(RefundRequest request) {
         PaymentResult result = new PaymentResult(request.getTransactionId(), true, "Refund issued: " + request.getReason());
         transactions.put(request.getTransactionId(), result);
+        statusMap.put(request.getTransactionId(), "REFUNDED");
         return result;
+    }
+
+    @Override
+    public boolean validatePayment(PaymentRequest request) {
+        return request != null && request.getAmount() > 0 && request.getAccountId() != null;
+    }
+
+    @Override
+    public String getPaymentStatus(String transactionId) {
+        return statusMap.getOrDefault(transactionId, "UNKNOWN");
+    }
+
+    @Override
+    public boolean cancelPayment(String transactionId) {
+        if (transactions.containsKey(transactionId)) {
+            statusMap.put(transactionId, "CANCELLED");
+            return true;
+        }
+        return false;
+    }
+
+    @Override
+    public Receipt generateReceipt(String transactionId) {
+        PaymentResult res = transactions.get(transactionId);
+        double amount = (res != null) ? 100.0 : 0.0;
+        return new Receipt("REC-" + transactionId, transactionId, amount);
     }
 }
